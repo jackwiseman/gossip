@@ -51,6 +51,7 @@ func main() {
 	ConnectNodes(&C, &J)
 	ConnectNodes(&D, &E)
 	ConnectNodes(&D, &K)
+	ConnectNodes(&D, &I)
 	ConnectNodes(&E, &F)
 	ConnectNodes(&E, &J)
 	ConnectNodes(&F, &G)
@@ -59,6 +60,4 @@ func main() {
 	ConnectNodes(&G, &J)
 	ConnectNodes(&H, &I)
 	ConnectNodes(&I, &J)
-
-	PrintNeighbors(F)
 }
