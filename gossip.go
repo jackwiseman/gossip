@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"time"
 	"sync"
+	"strconv"
 )
 
 type NodeState int
@@ -29,32 +30,48 @@ func PrintNode(node *Node) {
 	fmt.Printf("%d: (%s)\n", node.id, states[node.state])
 }
 
-func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, push bool) {
-	// wait
+func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, cycles int, c chan string, push bool) {
+	for i:=0;i<cycles;i++ {
 
-	// choose a random peer
+		// wait
+		time.Sleep(time.Second)
 
-	// need to ensure the node doesn't pick itself
-	var peer *Node = (*network)[rand.Intn(len(*network))]
-	for peer == node {
-		peer = (*network)[rand.Intn(len(*network))]
+		// choose a random peer
+		// need to ensure the node doesn't pick itself
+		var peer *Node = (*network)[rand.Intn(len(*network))]
+		for peer == node {
+			peer = (*network)[rand.Intn(len(*network))]
+		}
+		// fmt.Printf("%d picked %d\n", node.id, peer.id)
+
+		if(push && node.state == I) {
+		c <- strconv.Itoa(node.id) + " -> " + strconv.Itoa(peer.id) + " (cycle " + strconv.Itoa(i+1) + ")"
+			m.Lock()
+				peer.state = I
+			m.Unlock()
+		}
 	}
-	fmt.Printf("%d picked %d\n", node.id, peer.id)
-	
-	m.Lock()
-	if(push && node.state == I) {
-		UpdateNode(peer)
-	}
-	m.Unlock()
-
 	wg.Done()
+}
+
+func reader(c chan string) {
+	for {
+		message := <- c
+		fmt.Println(message)
+	}
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	NETWORK_SIZE := 5
+	NETWORK_SIZE := 1000
+	CYCLES := 2
 	var m sync.Mutex
 	var wg sync.WaitGroup
+
+
+	c := make(chan string)
+
+
 	network := []*Node{}
 
 	for i := 0; i < NETWORK_SIZE; i++ {
@@ -64,21 +81,27 @@ func main() {
 
 	// Update a randomly selected node from the network
 	UpdateNode(network[rand.Intn(len(network))])
-
-	fmt.Println("\n== Before ==")
-	for _, node := range network {
-		PrintNode(node)
-	}
-
+	go reader(c)
 	for _, node := range network {
 		wg.Add(1)
-		go SIgossip(node, &network, &m, &wg, true)
+		go SIgossip(node, &network, &m, &wg, CYCLES, c, true)
 	}
-
+//	wg.Add(1)
+//	go func() {
+//		wg.Wait()
+//		close(c)
+//	}()
+//	fmt.Println(len(c))
 	wg.Wait()
 
-	fmt.Println("\n== After ==")
+	count := 0
 	for _, node := range network {
-		PrintNode(node)
+		if node.state == I {
+			count++
+		}
 	}
+
+
+	fmt.Printf("%d/%d infected on %d cycles\n", count, NETWORK_SIZE, CYCLES)
+
 }
