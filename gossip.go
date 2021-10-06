@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 type NodeState int
@@ -9,55 +11,66 @@ type NodeState int
 const (
 	S NodeState = iota // Succeptable = 0
 	I		   // Infected = 1
-	R                  // Removed = 2
+	R		   // Removed = 2
 )
 
 type Node struct {
-	State NodeState
-	Neighbors []*Node
-	Name string
+	state NodeState `default:S`
+	//name string
+	id int
 }
 
-// Connects two nodes for easy initializing of network
-func ConnectNodes(n1 *Node, n2 *Node) {
-	n1.Neighbors = append(n1.Neighbors, n2)
-	n2.Neighbors = append(n2.Neighbors, n1)
+func UpdateNode(node *Node) {
+	node.state = I
 }
 
-func PrintNeighbors(node Node) {
-	for _, n := range node.Neighbors {
-		fmt.Print(n.Name, " ")
+func PrintNode(node *Node) {
+	states := [3]string  {"S", "I", "R"}
+	fmt.Printf("%d: (%s)\n", node.id, states[node.state])
+}
+
+func SIgossip(node *Node, network *[]*Node, push bool) {
+	// wait
+
+	// choose a random peer
+	x := node.id
+	// need to ensure the node doesn't pick itself
+	for x == node.id {
+		x = rand.Intn(len(*network))
+	}
+	var peer *Node = (*network)[x]
+	fmt.Printf("%d picked %d\n", node.id, peer.id)
+
+	if(push && node.state == I) {
+		UpdateNode(peer)
 	}
 }
 
 func main() {
-	var A = Node {Name:"A"}
-	var B = Node {Name:"B"}
-	var C = Node {Name:"C"}
-	var D = Node {Name:"D"}
-	var E = Node {Name:"E"}
-	var F = Node {Name:"F"}
-	var G = Node {Name:"G"}
-	var H = Node {Name:"H"}
-	var I = Node {Name:"I"}
-	var J = Node {Name:"J"}
-	var K = Node {Name:"K"}
+	rand.Seed(time.Now().UnixNano())
+	NETWORK_SIZE := 5
 
-	ConnectNodes(&A, &B)
-	ConnectNodes(&B, &C)
-	ConnectNodes(&B, &I)
-	ConnectNodes(&C, &D)
-	ConnectNodes(&C, &F)
-	ConnectNodes(&C, &J)
-	ConnectNodes(&D, &E)
-	ConnectNodes(&D, &K)
-	ConnectNodes(&D, &I)
-	ConnectNodes(&E, &F)
-	ConnectNodes(&E, &J)
-	ConnectNodes(&F, &G)
-	ConnectNodes(&F, &K)
-	ConnectNodes(&F, &I)
-	ConnectNodes(&G, &J)
-	ConnectNodes(&H, &I)
-	ConnectNodes(&I, &J)
+	network := []*Node{}
+
+	for i := 0; i < NETWORK_SIZE; i++ {
+		var x = Node{id: i}
+		network = append(network, &x)
+	}
+
+	// Update a randomly selected node from the network
+	UpdateNode(network[rand.Intn(len(network))])
+
+	fmt.Println("== Before ==")
+	for _, node := range network {
+		PrintNode(node)
+	}
+
+	for _, node := range network {
+		go SIgossip(node, &network, true)
+	}
+
+	fmt.Println("== After ==")
+	for _, node := range network {
+		PrintNode(node)
+	}
 }
