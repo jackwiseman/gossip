@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"sync"
 )
 
 type NodeState int
@@ -16,7 +17,6 @@ const (
 
 type Node struct {
 	state NodeState `default:S`
-	//name string
 	id int
 }
 
@@ -29,27 +29,32 @@ func PrintNode(node *Node) {
 	fmt.Printf("%d: (%s)\n", node.id, states[node.state])
 }
 
-func SIgossip(node *Node, network *[]*Node, push bool) {
+func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, push bool) {
 	// wait
 
 	// choose a random peer
-	x := node.id
-	// need to ensure the node doesn't pick itself
-	for x == node.id {
-		x = rand.Intn(len(*network))
-	}
-	var peer *Node = (*network)[x]
-	fmt.Printf("%d picked %d\n", node.id, peer.id)
 
+	// need to ensure the node doesn't pick itself
+	var peer *Node = (*network)[rand.Intn(len(*network))]
+	for peer == node {
+		peer = (*network)[rand.Intn(len(*network))]
+	}
+	fmt.Printf("%d picked %d\n", node.id, peer.id)
+	
+	m.Lock()
 	if(push && node.state == I) {
 		UpdateNode(peer)
 	}
+	m.Unlock()
+
+	wg.Done()
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	NETWORK_SIZE := 5
-
+	var m sync.Mutex
+	var wg sync.WaitGroup
 	network := []*Node{}
 
 	for i := 0; i < NETWORK_SIZE; i++ {
@@ -60,16 +65,19 @@ func main() {
 	// Update a randomly selected node from the network
 	UpdateNode(network[rand.Intn(len(network))])
 
-	fmt.Println("== Before ==")
+	fmt.Println("\n== Before ==")
 	for _, node := range network {
 		PrintNode(node)
 	}
 
 	for _, node := range network {
-		go SIgossip(node, &network, true)
+		wg.Add(1)
+		go SIgossip(node, &network, &m, &wg, true)
 	}
 
-	fmt.Println("== After ==")
+	wg.Wait()
+
+	fmt.Println("\n== After ==")
 	for _, node := range network {
 		PrintNode(node)
 	}
