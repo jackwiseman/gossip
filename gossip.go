@@ -19,34 +19,23 @@ const (
 
 type Node struct {
 	state NodeState `default:S`
-	id int
 }
 
-func InfectNode(node *Node) {
-	node.state = I
-}
-
-func PrintNode(node *Node) {
-	states := [3]string  {"S", "I", "R"}
-	fmt.Printf("%d: (%s)\n", node.id, states[node.state])
-}
-
-func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, cycles int, /*c chan string,*/ push bool, pull bool) {
+func SIgossip(self *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, cycles int, /*c chan string,*/ push bool, pull bool) {
 
 	for i:=0;i<cycles;i++ {
-		// wait
 
-		currState := node.state
-		time.Sleep(time.Millisecond)
+		currState := self.state
+		time.Sleep(time.Nanosecond)
 
 		// choose a random peer that isn't itself
 		var peer *Node = (*network)[rand.Intn(len(*network))]
-		for peer == node {
+		for peer == self {
 			peer = (*network)[rand.Intn(len(*network))]
 		}
 
 		currPeerState := peer.state
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Nanosecond)
 
 		if(push && currState == I) {
 			m.Lock()
@@ -55,13 +44,13 @@ func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, c
 		}
 
 		if(pull && currPeerState == I) {
-//				c <- strconv.Itoa(node.id) + " requesting from " + strconv.Itoa(peer.id) + "(cycle " + strconv.Itoa(i) + ")"
+			// For error logging purposes
+			// c <- strconv.Itoa(node.id) + " requesting from " + strconv.Itoa(peer.id) + "(cycle " + strconv.Itoa(i) + ")"
 			m.Lock()
-//			updateRequest(peer, node, c)
-				node.state = I
+				self.state = I
 			m.Unlock()
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Nanosecond)
 	}
 	wg.Done()
 }
@@ -75,7 +64,7 @@ func SIgossip(node *Node, network *[]*Node, m *sync.Mutex, wg *sync.WaitGroup, c
 
 func main() {
 	// For batch testing
-	INF := 0
+	TOTAL_INFECTED := 0
 	var NETWORK_SIZE int
 	var CYCLES int
 	var TESTS int
@@ -112,16 +101,15 @@ func main() {
 
 //		c := make(chan string)
 
-		// Create a network of NETWORK_SIZE nodes
+		// Create a network of NETWORK_SIZE nodes, with a randomly selected infected node
 		network := []*Node{}
 
 		for i := 0; i < NETWORK_SIZE; i++ {
-			var x = Node{id: i}
-			network = append(network, &x)
+			var x = new(Node)
+			network = append(network, x)
 		}
 
-		// Infect a randomly selected node from the network
-		InfectNode(network[rand.Intn(len(network))])
+		network[rand.Intn(len(network))].state = I
 
 //		go printer(c) // uncomment for errorcheckign
 		for _, node := range network {
@@ -137,19 +125,19 @@ func main() {
 		}
 		wg.Wait()
 
-		// Stats
-		count := 0
+		// Collect stats at the end of each cycle
 		for _, node := range network {
 			if node.state == I {
-				count++
+				TOTAL_INFECTED++
 			}
 		}
-		INF = INF + count
-
-//		fmt.Printf("%d/%d infected on %d cycles\n", count, NETWORK_SIZE, CYCLES)
-//		fmt.Println("")
 	}
 
-	avg := float64(INF) / float64(TESTS)
-	fmt.Printf("Avg infected: %0.2f \n", avg)
+	if(TESTS == 1) {
+		fmt.Printf("Infected: %d\n", TOTAL_INFECTED)
+	} else {
+		avg := float64(TOTAL_INFECTED) / float64(TESTS)
+		fmt.Printf("Avg infected: %0.2f \n", avg)
+	}
+
 }
